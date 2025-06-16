@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Savvy Beast Radio - Playlist History</title>
+    <link rel="stylesheet" href="css/playlist.css">
+</head>
+<body>
+    <div class="imageBg" id="imageBg">
+        <img class="imageBg" src="Savvy Beast Radio_files/Image_Default.jpg">
+    </div>
+    
+    <div class="content">
+        <div class="content2">
+            <table>
+                <tr id="topheader">
+                    <td colspan="2" id="topheader">
+                        <div id="logo1">
+                            <img src="Savvy Beast Radio_files/Logo_StreamS.svg" alt="Streams Logo" style="width:120px; height:32px;">
+                        </div>
+                        <div id="pad1">PLAYLIST HISTORY</div>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td id="metadata">
+                        <div class="filter-container">
+                            <h3>Filter Playlist</h3>
+                            <div class="filter-row">
+                                <label for="artistFilter">Artist:</label>
+                                <input type="text" id="artistFilter" placeholder="Filter by artist...">
+                            </div>
+                            <div class="filter-row">
+                                <label for="titleFilter">Title:</label>
+                                <input type="text" id="titleFilter" placeholder="Filter by title...">
+                            </div>
+                            <div class="filter-row">
+                                <label for="albumFilter">Album:</label>
+                                <input type="text" id="albumFilter" placeholder="Filter by album...">
+                            </div>
+                            <div class="filter-row">
+                                <label for="yearFilter">Year:</label>
+                                <input type="text" id="yearFilter" placeholder="Filter by year...">
+                            </div>
+                            <div class="filter-row">
+                                <button id="clearFilters">Clear All Filters</button>
+                            </div>
+                        </div>
+                        
+                        <div class="playlist-container">
+                            <div class="playlist-header">
+                                <div class="header-cell">Timestamp</div>
+                                <div class="header-cell">Artist</div>
+                                <div class="header-cell">Title</div>
+                                <div class="header-cell">Album</div>
+                                <div class="header-cell">Year</div>
+                            </div>
+                            <div id="playlistHistory" class="playlist-content">
+                                <!-- Playlist items will be populated here -->
+                            </div>
+                        </div>
+                    </td>
+                    
+                    <td id="metadata_image">
+                        <div id="image">
+                            <img class="image" src="Savvy Beast Radio_files/Image_Default.jpg">
+                        </div>
+                    </td>
+                </tr>
+                
+                <tr id="bottomfooter">
+                    <td colspan="2" id="bottomfooter">
+                        <div id="copyright">© 2024 Savvy Beast Radio. All rights reserved.</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    
+    <script src="js/playlist.js"></script>
+</body>
+</html>

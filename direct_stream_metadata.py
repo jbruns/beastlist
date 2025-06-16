@@ -3,6 +3,7 @@
 import requests
 import re
 import time
+import datetime
 import logging
 import azure.functions as func
 from azure.cosmosdb.table.tableservice import TableService
