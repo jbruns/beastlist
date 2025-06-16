@@ -3,19 +3,24 @@
 import requests
 import re
 import time
+import logging
+import azure.functions as func
+from azure.cosmosdb.table.tableservice import TableService
+from azure.cosmosdb.table.models import Entity
 from mutagen.mp4 import MP4
 from mutagen.id3 import ID3NoHeaderError
 import io
 from urllib.parse import urljoin
+import os
 
 class HLSMetadataExtractor:
-    def __init__(self, base_url="https://streams.blob.core.windows.net/rock/FLAC/"):
+    def __init__(self, base_url):
         self.base_url = base_url
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
         })
-    
+
     def get_latest_segments(self):
         """Fetch the current m3u8 playlist and extract latest segment URLs"""
         try:
@@ -65,7 +70,12 @@ class HLSMetadataExtractor:
                     metadata['artist'] = mp4_file.tags.get('\xa9ART', [''])[0]
                     metadata['title'] = mp4_file.tags.get('\xa9nam', [''])[0] 
                     metadata['album'] = mp4_file.tags.get('\xa9alb', [''])[0]
-                    
+                    # Attempt to extract the year
+                    year = mp4_file.tags.get('\xa9day', [''])[0]
+                    if year and isinstance(year, str) and year.isdigit():
+                        metadata['year'] = int(year)
+                    else:
+                        metadata['year'] = None
                     # Also check for ID3 tags embedded in MP4
                     if any(metadata.values()):
                         return metadata
@@ -85,20 +95,25 @@ class HLSMetadataExtractor:
                     from mutagen.id3 import ID3
                     id3 = ID3(id3_data)
                     
-                    return {
+                    metadata = {
                         'artist': str(id3.get('TPE1', '')),
                         'title': str(id3.get('TIT2', '')),
                         'album': str(id3.get('TALB', ''))
                     }
+                    try:
+                        metadata['year'] = int(str(id3.get('TDRC', ''))[:4])
+                    except:
+                        metadata['year'] = None
+                    return metadata
                 except Exception as id3_error:
                     print(f"ID3 parsing failed: {id3_error}")
             
-            return {'artist': '', 'title': '', 'album': ''}
-            
+            return {'artist': '', 'title': '', 'album': '', 'year': None}
+
         except Exception as e:
             print(f"Error extracting metadata: {e}")
-            return {'artist': '', 'title': '', 'album': ''}
-    
+            return {'artist': '', 'title': '', 'album': '', 'year': None}
+
     def get_current_metadata(self):
         """Get the current playing metadata"""
         segments = self.get_latest_segments()
@@ -118,18 +133,43 @@ class HLSMetadataExtractor:
                     return metadata
         
         print("No metadata found in any segments")
-        return {'artist': '', 'title': '', 'album': ''}
+        return {'artist': '', 'title': '', 'album': '', 'year': None}
 
-def extract_stream_metadata():
-    """Main function to extract current stream metadata"""
-    extractor = HLSMetadataExtractor()
-    return extractor.get_current_metadata()
+def main(mytimer: func.Timer) -> None:
+    utc_timestamp = datetime.datetime.utcnow().isoformat()
 
-if __name__ == "__main__":
-    print("Extracting metadata from Savvy Beast Radio HLS stream...")
-    metadata = extract_stream_metadata()
-    
-    print("\nCurrent Track:")
-    print(f"Artist: {metadata['artist']}")
-    print(f"Title: {metadata['title']}")
-    print(f"Album: {metadata['album']}")
+    if mytimer.past_due:
+        logging.info('The timer is past due!')
+
+    logging.info('Python timer trigger function ran at %s', utc_timestamp)
+
+    # Get configuration settings from environment variables
+    base_url = os.environ["HLS_BASE_URL"]
+    table_name = os.environ["AZURE_TABLE_NAME"]
+    account_name = os.environ["AZURE_STORAGE_ACCOUNT"]
+    account_key = os.environ["AZURE_STORAGE_KEY"]
+
+    # Initialize Table Service
+    table_service = TableService(account_name=account_name, account_key=account_key)
+
+    # Initialize HLS Metadata Extractor
+    extractor = HLSMetadataExtractor(base_url)
+    metadata = extractor.get_current_metadata()
+
+    if any(metadata.values()):
+        # Create entity for table storage
+        entity = {
+            'PartitionKey': metadata['artist'],
+            'RowKey': str(time.time()),  # Use timestamp as RowKey
+            'artist': metadata['artist'],
+            'title': metadata['title'],
+            'album': metadata['album'],
+            'year': metadata['year'] if metadata['year'] else None,
+            'timestamp': datetime.datetime.utcnow().isoformat()
+        }
+
+        # Insert entity into table
+        table_service.insert_entity(table_name, entity)
+        logging.info(f"Metadata saved: {metadata}")
+    else:
+        logging.info("No metadata found.")
