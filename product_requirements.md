@@ -6,8 +6,8 @@ This document outlines the requirements for a web-based application that interfa
 
 ## 2. Goals
 
-*   Extract artist, title, and album metadata information from the audio stream.
-*   Store the metadata in a simple database, along with a timestamp.
+*   Extract artist, title, album, and year metadata information from the audio stream.
+*   Store the metadata in a database, along with a timestamp.
 *   Provide users with the ability to view playlist history.
 *   Implement real-time filtering of the playlist fields without additional requests to the service.
 *   Mirror the style of an existing website (https://www.savvybeastradio.com).
@@ -16,8 +16,8 @@ This document outlines the requirements for a web-based application that interfa
 
 ```mermaid
 graph LR
-    A[HLS Stream] --> B(Backend: Metadata Extractor);
-    B --> C{SQLite Database};
+    A[HLS Stream] --> B(Backend: Metadata Extractor - Azure Function);
+    B --> C{Azure Table Storage};
     C --> D(Frontend: Playlist History);
     D --> E{User Filters};
     E --> D;
@@ -29,29 +29,34 @@ graph LR
 *   **Functionality:**
     *   Fetch the m3u8 playlist from the specified URL.
     *   Download the latest audio segments (fMP4).
-    *   Extract metadata (artist, title, album) from the audio segments using ID3 tags.
-    *   Store the extracted metadata in an SQLite database, along with a timestamp.
-*   **Database:** SQLite
-    *   **Schema:**
-        *   `id`: INTEGER PRIMARY KEY AUTOINCREMENT
-        *   `artist`: TEXT
-        *   `title`: TEXT
-        *   `album`: TEXT
-        *   `timestamp`: DATETIME
+    *   Extract metadata (artist, title, album, year) from the audio segments using ID3 tags.
+    *   Store the extracted metadata in Azure Table Storage, along with a timestamp.
 *   **Implementation:**
+    *   Implement the metadata extractor as an Azure Function.
+    *   Configure the Azure Function to run on a timer trigger with a 2-minute interval.
     *   Modify [`direct_stream_metadata.py`](direct_stream_metadata.py) to:
-        *   Accept the m3u8 playlist URL as a command-line argument or environment variable.
-        *   Connect to the SQLite database.
-        *   Store the extracted metadata in the database.
-        *   Run continuously, extracting metadata and storing it in the database.
+        *   Accept the m3u8 playlist URL as a configuration setting.
+        *   Connect to Azure Table Storage.
+        *   Extract the "year" metadata from the audio segments.
+        *   Store the extracted metadata in Azure Table Storage.
+
+*   **Database:** Azure Table Storage
+    *   **Schema:**
+        *   `PartitionKey`: (e.g., "artist")
+        *   `RowKey`: (unique identifier, e.g., timestamp)
+        *   `artist`: STRING
+        *   `title`: STRING
+        *   `album`: STRING
+        *   `year`: INT
+        *   `timestamp`: DATETIME
 
 ### 3.2. Frontend (Playlist History)
 
 *   **Language:** HTML, CSS, JavaScript
 *   **Framework/Library:** None (to match the style of the provided website)
 *   **Functionality:**
-    *   Display the playlist history from the SQLite database.
-    *   Implement real-time filtering by artist, title, and album.
+    *   Display the playlist history from Azure Table Storage.
+    *   Implement real-time filtering by artist, title, album, and year.
     *   Mirror the style of [https://www.savvybeastradio.com](https://www.savvybeastradio.com).
 *   **Implementation:**
     *   Create an HTML page to display the playlist history.
@@ -61,24 +66,25 @@ graph LR
         *   Display the playlist history in a table or list.
         *   Implement real-time filtering using JavaScript.
 *   **API Endpoint:**
-    *   Create a simple API endpoint on the backend (e.g., using Flask or FastAPI) to serve the playlist history from the SQLite database.
+    *   Create a simple API endpoint on the backend (e.g., using Flask or FastAPI) to serve the playlist history from Azure Table Storage.
 
 ### 3.3. Filtering Implementation
 
 *   The frontend will use JavaScript to filter the playlist history in real-time.
-*   The user will be able to enter text in the artist, title, and album fields.
+*   The user will be able to enter text in the artist, title, album, and year fields.
 *   As the user types, the JavaScript code will filter the playlist history to show only the songs that match the entered text.
 *   The filtering will be case-insensitive.
 
 ### 3.4. Deployment
 
-*   The backend can be deployed to a server or cloud platform.
+*   The backend will be deployed as an Azure Function.
 *   The frontend can be hosted on a web server or CDN.
 
 ## 4. Technologies
 
 *   Python
-*   SQLite
+*   Azure Table Storage
+*   Azure Functions
 *   HTML
 *   CSS
 *   JavaScript
